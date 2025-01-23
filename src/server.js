@@ -18,6 +18,7 @@ app.prepare().then(() => {
             credentials: true
         },
         path: '/socket.io',
+        addTrailingSlash: false,
         transports: ['websocket', 'polling'],
         pingTimeout: 60000,
         pingInterval: 25000,
