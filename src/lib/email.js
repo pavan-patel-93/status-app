@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import User from '@/lib/models/user'; 
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -9,6 +10,7 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASSWORD,
   },
 });
+
 
 export async function sendStatusChangeEmail(service, oldStatus, newStatus) {
   const emailTemplate = `
@@ -22,14 +24,18 @@ export async function sendStatusChangeEmail(service, oldStatus, newStatus) {
   `;
 
   try {
+    // Fetch all user emails as plain objects
+    const users = await User.find().select('email').lean(); // Use .lean() to return plain objects
+    const emailRecipients = users.map(user => user.email).join(', '); // Join emails
+
     await transporter.sendMail({
       from: process.env.SMTP_FROM_ADDRESS,
-      to: process.env.ALERT_EMAIL_RECIPIENTS,
+      to: emailRecipients, // Use the joined email string
       subject: `Status Change Alert: ${service.name}`,
       html: emailTemplate,
     });
     console.log('Status change email sent successfully');
-  } catch (error) {
+} catch (error) {
     console.error('Error sending status change email:', error);
-  }
-} 
+}
+}
