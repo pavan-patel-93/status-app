@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+import { LoadingSpinner, LoadingPage, LoadingCard } from "@/components/ui/loading";
+
 
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState({
@@ -30,8 +32,12 @@ export default function DashboardPage() {
         incident => incident.status !== 'resolved'
       ).length;
 
-      const systemStatus = services.some(service => service.status === 'down')
+      const systemStatus = services.some(service => 
+        ['partial_outage', 'major_outage'].includes(service.status)
+      )
         ? 'degraded'
+        : services.some(service => service.status === 'degraded_performance')
+        ? 'degraded_performance'
         : 'operational';
 
       setMetrics({
@@ -76,9 +82,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-screen">
-          <p className="text-black">Loading dashboard...</p>
-        </div>
+        <LoadingPage />
       </DashboardLayout>
     );
   }
@@ -119,19 +123,6 @@ export default function DashboardPage() {
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusBadgeClass(metrics.systemStatus)}`}>
                 {getStatusText(metrics.systemStatus)}
               </span>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-black">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-black text-center py-4">
-                No recent activity to display
-              </div>
             </CardContent>
           </Card>
         </div>

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { LoadingButton } from "@/components/ui/loading-button";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function SignUpPage() {
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -31,14 +34,15 @@ export default function SignUpPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setLoading(true);
+    setError(""); // Clear any previous errors
+
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify(formData),
       });
 
@@ -53,13 +57,17 @@ export default function SignUpPage() {
         description: "Account created successfully",
       });
 
-      router.push("/dashboard");
+      // Redirect to sign-in page after successful registration
+      router.push("/sign-in");
     } catch (error) {
+      setError(error.message);
       toast({
         title: "Error",
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,6 +78,12 @@ export default function SignUpPage() {
           <h1 className="text-3xl text-black font-bold">Create Account</h1>
           <p className="text-gray-500">Enter your details to create an account</p>
         </div>
+        
+        {error && (
+          <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded">
+            {error}
+          </div>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -111,9 +125,13 @@ export default function SignUpPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+          <LoadingButton 
+            type="submit" 
+            loading={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
             Sign Up
-          </Button>
+          </LoadingButton>
         </form>
 
         <div className="text-center text-sm">

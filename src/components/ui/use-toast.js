@@ -3,8 +3,8 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { ToastActionElement } from "@radix-ui/react-toast";
 
-const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_LIMIT = 5;
+const TOAST_REMOVE_DELAY = 3000; // 3 seconds
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -102,36 +102,7 @@ function dispatch(action) {
   });
 }
 
-function toast({ ...props }) {
-  const id = genId();
-
-  const update = (props) =>
-    dispatch({
-      type: actionTypes.UPDATE_TOAST,
-      toast: { ...props, id },
-    });
-  const dismiss = () => dispatch({ type: actionTypes.DISMISS_TOAST, toastId: id });
-
-  dispatch({
-    type: actionTypes.ADD_TOAST,
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss();
-      },
-    },
-  });
-
-  return {
-    id: id,
-    dismiss,
-    update,
-  };
-}
-
-function useToast() {
+export function useToast() {
   const [state, setState] = useState(memoryState);
 
   useEffect(() => {
@@ -146,9 +117,44 @@ function useToast() {
 
   return {
     ...state,
-    toast,
-    dismiss: (toastId) => dispatch({ type: actionTypes.DISMISS_TOAST, toastId }),
-  };
-}
+    toast: (props) => {
+      const id = genId();
 
-export { useToast, toast }; 
+      const update = (props) =>
+        setState((state) => ({
+          ...state,
+          toasts: state.toasts.map((t) =>
+            t.id === id ? { ...t, ...props } : t
+          ),
+        }));
+
+      const dismiss = () => setState((state) => ({
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== id),
+      }));
+
+      setState((state) => ({
+        ...state,
+        toasts: [
+          {
+            id,
+            ...props,
+            open: true,
+            onOpenChange: (open) => {
+              if (!open) dismiss();
+            },
+          },
+          ...state.toasts,
+        ].slice(0, TOAST_LIMIT),
+      }));
+
+      setTimeout(dismiss, TOAST_REMOVE_DELAY);
+
+      return {
+        id,
+        dismiss,
+        update,
+      }; 
+    },
+  };
+} 

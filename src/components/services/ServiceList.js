@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ServiceForm from './ServiceForm';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useToast } from "@/components/ui/use-toast";
+import { LoadingPage } from "@/components/ui/loading";
 import {
   Table,
   TableBody,
@@ -22,6 +23,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ServiceList() {
   const [services, setServices] = useState([]);
@@ -30,6 +38,7 @@ export default function ServiceList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState(null);
   const { socket, isConnected, sendMessage } = useWebSocket();
+  console.log("websocket", socket);
   const { toast } = useToast();
 
   const handleEdit = (service) => {
@@ -42,6 +51,7 @@ export default function ServiceList() {
     ));
     setEditingService(null);
     toast({
+      variant: "success",
       title: "Success",
       description: "Service updated successfully",
     });
@@ -50,6 +60,7 @@ export default function ServiceList() {
   const handleServiceCreated = (newService) => {
     setServices(prev => [...prev, newService]);
     toast({
+      variant: "success",
       title: "Success",
       description: "Service created successfully",
     });
@@ -80,13 +91,43 @@ export default function ServiceList() {
     } catch (error) {
       console.error('Error deleting service:', error);
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to delete service",
-        variant: "destructive",
       });
     } finally {
       setDeleteDialogOpen(false);
       setServiceToDelete(null);
+    }
+  };
+
+  const updateServiceStatus = async (serviceId, newStatus) => {
+    try {
+      const response = await fetch(`/api/services/${serviceId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update service status');
+
+      const updatedService = await response.json();
+      setServices(prev => prev.map(service => 
+        service._id === serviceId ? updatedService : service
+      ));
+
+      toast({
+        title: "Success",
+        description: "Service status updated successfully",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update service status",
+      });
     }
   };
 
@@ -95,32 +136,33 @@ export default function ServiceList() {
   }, []);
 
   useEffect(() => {
-    if (isConnected) {
-      // Join service updates room
-      sendMessage('joinServiceUpdates');
+    if (!socket) return;
+  
+    // Join service updates room
+    sendMessage('joinServiceUpdates');
+  
+    // Add Socket.IO listener
+    socket.on('serviceUpdated', (data) => {
+      setServices(prevServices => 
+        prevServices.map(service => 
+          service._id === data.service._id ? data.service : service
+        )
+      );
+  
+      toast({
+        title: "Service Updated",
+        description: `${data.service.name} status changed to ${data.service.status}`,
+      });
+    });
+  
+    // Cleanup listener on unmount
+    return () => {
+      if (socket) {
+        socket.off('serviceUpdated');
+      }
+    };
+  }, [socket, sendMessage]);
 
-      // Add message listener
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'serviceUpdated') {
-            setServices(prevServices => 
-              prevServices.map(service => 
-                service._id === data.service._id ? data.service : service
-              )
-            );
-
-            toast({
-              title: "Service Updated",
-              description: `${data.service.name} status changed to ${data.service.status}`,
-            });
-          }
-        } catch (error) {
-          console.error('Error processing message:', error);
-        }
-      };
-    }
-  }, [isConnected, socket, sendMessage]);
 
   const fetchServices = async () => {
     try {
@@ -129,9 +171,9 @@ export default function ServiceList() {
       setServices(data);
     } catch (error) {
       toast({
+        variant: "destructive",
         title: "Error",
         description: "Failed to fetch services",
-        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -139,8 +181,9 @@ export default function ServiceList() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8">Loading...</div>;
+    return <LoadingPage />;
   }
+
 
   return (
     <div className="container mx-auto p-4">
@@ -160,27 +203,34 @@ export default function ServiceList() {
       ) : (
         <div className="rounded-md border">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-blue-50 border-b">
               <TableRow>
-                <TableHead className="text-black">Name</TableHead>
-                <TableHead className="text-black">Description</TableHead>
-                <TableHead className="text-black">Status</TableHead>
-                <TableHead className="text-black text-right">Actions</TableHead>
+                <TableHead className="font-semibold text-blue-900">Name</TableHead>
+                <TableHead className="font-semibold text-blue-900">Description</TableHead>
+                <TableHead className="font-semibold text-blue-900">Status</TableHead>
+                <TableHead className="font-semibold text-blue-900 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {services.map((service) => (
-                <TableRow key={service._id}>
+                <TableRow key={service._id} className="hover:bg-gray-50">
                   <TableCell className="font-medium text-black">{service.name}</TableCell>
                   <TableCell className="text-black">{service.description}</TableCell>
                   <TableCell>
-                    <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      service.status === 'operational' ? 'bg-green-100 text-green-800' :
-                      service.status === 'degraded' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {service.status}
-                    </div>
+                    <Select
+                      value={service.status}
+                      onValueChange={(value) => updateServiceStatus(service._id, value)}
+                    >
+                      <SelectTrigger className="w-[250px]">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="operational">Operational</SelectItem>
+                        <SelectItem value="degraded_performance">Degraded Performance</SelectItem>
+                        <SelectItem value="partial_outage">Partial Outage</SelectItem>
+                        <SelectItem value="major_outage">Major Outage</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">

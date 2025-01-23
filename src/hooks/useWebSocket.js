@@ -1,59 +1,55 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { io } from "socket.io-client";
 
 export function useWebSocket() {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-
-  const connect = useCallback(() => {
-    try {
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3000';
-      const ws = new WebSocket(`${wsUrl}/api/ws`);
-
-      ws.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnected(true);
-        setRetryCount(0);
-      };
-
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected', event.code, event.reason);
-        setIsConnected(false);
-        setSocket(null);
-        
-        if (event.code !== 1000) {
-          const timeout = Math.min(1000 * Math.pow(2, retryCount), 10000);
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-            connect();
-          }, timeout);
-        }
-      };
-
-      setSocket(ws);
-      return ws;
-    } catch (error) {
-      console.error('WebSocket connection error:', error);
-      return null;
-    }
-  }, [retryCount]);
 
   useEffect(() => {
-    const ws = connect();
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+    
+    // Create Socket.IO instance
+    const socketInstance = io(socketUrl, {
+      path: '/socket.io',
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5
+    });
+
+    // Connection event handlers
+    socketInstance.on('connect', () => {
+      console.log('Socket.IO connected');
+      setIsConnected(true);
+    });
+
+    socketInstance.on('disconnect', () => {
+      console.log('Socket.IO disconnected');
+      setIsConnected(false);
+    });
+
+    socketInstance.on('connect_error', (error) => {
+      console.error('Socket.IO connection error:', error);
+    });
+
+    setSocket(socketInstance);
+
+    // Cleanup on unmount
     return () => {
-      if (ws) {
-        ws.close(1000, 'Component unmounting');
+      if (socketInstance) {
+        socketInstance.disconnect();
       }
     };
-  }, [connect]);
+  }, []);
 
-  const sendMessage = useCallback((type, data = {}) => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type, ...data }));
+  const sendMessage = (type, data = {}) => {
+    if (socket?.connected) {
+      socket.emit(type, data);
+    } else {
+      console.warn('Socket not connected, message not sent:', type, data);
     }
-  }, [socket]);
+  };
 
   return { socket, isConnected, sendMessage };
 } 

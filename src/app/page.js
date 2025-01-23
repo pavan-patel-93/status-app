@@ -7,7 +7,7 @@ export default function Home() {
       {/* Navigation */}
       <header className="px-4 lg:px-6 h-14 flex items-center border-b border-gray-100">
         <Link className="flex items-center justify-center" href="/">
-          <span className="font-bold text-xl text-gray-900">Status Page</span>
+          <span className="font-bold text-xl text-gray-900">Statify</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6">
           <Link 
@@ -35,7 +35,7 @@ export default function Home() {
                   Monitor Your Services in Real-Time
                 </h1>
                 <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl">
-                  Create beautiful status pages, communicate with your users, and manage incidents effectively.
+                  Communicate with your users, and manage incidents effectively.
                 </p>
               </div>
               <div className="space-x-4">
@@ -63,7 +63,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t border-gray-100">
         <p className="text-xs text-gray-500">
-          © 2024 Status Page. All rights reserved.
+          © 2025 Statify. All rights reserved.
         </p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link 

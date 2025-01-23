@@ -1,59 +1,44 @@
-import { WebSocketServer } from 'ws';
 import { Server } from 'socket.io';
 
-let wss;
-let io;
-
 export function initSocket(server) {
-  if (wss) {
-    return wss;
+  // If io is already initialized globally, return it
+  if (global.io) {
+    return global.io;
   }
 
-  wss = new WebSocketServer({
-    server,
-    path: '/ws',
-    clientTracking: true
-  });
-
-  wss.on('connection', (ws) => {
-    console.log('Client connected to socket');
-
-    ws.on('message', (data) => {
-      try {
-        const message = JSON.parse(data);
-        console.log('Received message:', message);
-      } catch (error) {
-        console.error('Error parsing message:', error);
-      }
-    });
-
-    ws.on('close', () => {
-      console.log('Client disconnected');
-    });
-
-    ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
-    });
-  });
-
-  return wss;
-}
-
-export function getWss() {
-  if (!wss) {
-    throw new Error('WebSocket server not initialized');
-  }
-  return wss;
-}
-
-export function broadcast(data) {
-  if (!wss) return;
-
-  wss.clients.forEach((client) => {
-    if (client.serviceUpdates && client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
+  const io = new Server(server, {
+    path: '/socket.io',
+    cors: {
+      origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+      methods: ["GET", "POST"],
+      credentials: true
     }
   });
+
+  // Store io instance globally
+  global.io = io;
+
+  io.on('connection', (socket) => {
+    console.log('Client connected');
+
+    socket.on('joinServiceUpdates', () => {
+      socket.join('serviceUpdates');
+      console.log('Client joined service updates channel');
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Client disconnected');
+    });
+  });
+
+  return io;
+}
+
+export function getIo() {
+  if (!global.io) {
+    throw new Error('Socket.IO server not initialized');
+  }
+  return global.io;
 }
 
 export const config = {

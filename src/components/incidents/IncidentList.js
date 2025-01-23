@@ -1,22 +1,33 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useToast } from "@/components/ui/use-toast";
-import IncidentForm from './IncidentForm';
+import { useState, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatDistanceToNow } from 'date-fns';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { formatDistanceToNow } from "date-fns";
+import IncidentForm from "./IncidentForm";
+import { LoadingPage } from "../ui/loading";
 
 export default function IncidentList() {
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [incidentToDelete, setIncidentToDelete] = useState(null);
 
   useEffect(() => {
     fetchIncidents();
@@ -24,91 +35,176 @@ export default function IncidentList() {
 
   const fetchIncidents = async () => {
     try {
-      const response = await fetch('/api/incidents');
+      const response = await fetch("/api/incidents");
       const data = await response.json();
-      setIncidents(data);
+      setIncidents(Array.isArray(data) ? data : []);
+      setLoading(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch incidents",
-        variant: "destructive",
-      });
-    } finally {
+      console.error("Error fetching incidents:", error);
+      setIncidents([]);
       setLoading(false);
     }
   };
 
   const handleIncidentCreated = (newIncident) => {
-    setIncidents([newIncident, ...incidents]);
-    toast({
-      title: "Success",
-      description: "Incident created successfully",
-    });
+    setIncidents((prev) => [newIncident, ...prev]);
+  };
+
+  const handleDeleteClick = (incident) => {
+    setIncidentToDelete(incident);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!incidentToDelete) return;
+
+    try {
+      const response = await fetch(`/api/incidents/${incidentToDelete._id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete incident");
+
+      setIncidents((prev) =>
+        prev.filter((incident) => incident._id !== incidentToDelete._id)
+      );
+      setDeleteDialogOpen(false);
+      setIncidentToDelete(null);
+    } catch (error) {
+      console.error("Error deleting incident:", error);
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status) {
+      case "investigating":
+        return "bg-yellow-100 text-yellow-800";
+      case "identified":
+        return "bg-blue-100 text-blue-800";
+      case "monitoring":
+        return "bg-purple-100 text-purple-800";
+      case "resolved":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getImpactBadgeClass = (impact) => {
+    switch (impact) {
+      case "critical":
+        return "bg-red-100 text-red-800";
+      case "major":
+        return "bg-orange-100 text-orange-800";
+      case "minor":
+        return "bg-yellow-100 text-yellow-800";
+      case "none":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center p-8 text-gray-500">Loading...</div>;
+    return <LoadingPage />;
   }
 
+  const incidentsArray = Array.isArray(incidents) ? incidents : [];
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Incidents</h2>
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-black">Incidents</h2>
         <IncidentForm onIncidentCreated={handleIncidentCreated} />
       </div>
-      {incidents.length === 0 ? (
-        <Card>
-          <CardContent className="text-center py-6">
-            <p className="text-gray-500">No incidents reported. Create your first incident to get started.</p>
-          </CardContent>
-        </Card>
+
+      {incidentsArray.length === 0 ? (
+        <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-black">No incidents found.</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {incidents.map((incident) => (
-            <Card key={incident._id} className="bg-white border border-gray-200">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-gray-900">{incident.title}</CardTitle>
-                    <CardDescription className="text-gray-500">
-                      Created {formatDistanceToNow(new Date(incident.createdAt))} ago
-                    </CardDescription>
-                  </div>
-                  <Badge
-                    variant={
-                      incident.status === 'resolved' ? 'success' :
-                      incident.status === 'investigating' ? 'warning' :
-                      'destructive'
-                    }
-                  >
-                    {incident.status}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">
-                  {incident.description}
-                </p>
-                {incident.updates && incident.updates.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-900">Updates</h4>
-                    {incident.updates.map((update, index) => (
-                      <div key={index} className="text-sm">
-                        <p className="text-gray-600">
-                          {update.message}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          {formatDistanceToNow(new Date(update.createdAt))} ago
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader className="bg-blue-50 border-b">
+              <TableRow>
+                <TableHead className="font-semibold text-blue-900">Title</TableHead>
+                <TableHead className="font-semibold text-blue-900">Status</TableHead>
+                <TableHead className="font-semibold text-blue-900">Impact</TableHead>
+                <TableHead className="font-semibold text-blue-900">Affected Services</TableHead>
+                <TableHead className="font-semibold text-blue-900">Created</TableHead>
+                <TableHead className="font-semibold text-blue-900 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {incidentsArray.map((incident) => (
+                <TableRow key={incident._id} className="hover:bg-gray-50">
+                  <TableCell className="font-medium text-black">{incident.title}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(
+                        incident.status
+                      )}`}
+                    >
+                      {incident.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getImpactBadgeClass(
+                        incident.impact
+                      )}`}
+                    >
+                      {incident.impact}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-black">
+                    {Array.isArray(incident.services)
+                      ? incident.services
+                          .map((service) => service.name)
+                          .join(", ")
+                      : ""}
+                  </TableCell>
+                  <TableCell className="text-black">
+                    {formatDistanceToNow(new Date(incident.createdAt))} ago
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleDeleteClick(incident)}
+                        className="px-3 py-1 text-sm text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-black">Delete Incident</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500">
+              Are you sure you want to delete "{incidentToDelete?.title}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-white text-black border border-gray-200 hover:bg-gray-100">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

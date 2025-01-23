@@ -7,6 +7,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { LoadingSpinner, LoadingPage, LoadingCard } from "@/components/ui/loading";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -16,6 +18,8 @@ export default function SignInPage() {
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -30,7 +34,9 @@ export default function SignInPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setLoading(true);
+    setError(""); // Clear any previous errors
+
     try {
       const result = await signIn("credentials", {
         email: formData.email,
@@ -39,7 +45,13 @@ export default function SignInPage() {
       });
 
       if (result.error) {
-        throw new Error(result.error);
+        setError(result.error);
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive",
+        });
+        return;
       }
 
       toast({
@@ -49,11 +61,14 @@ export default function SignInPage() {
 
       router.push("/dashboard");
     } catch (error) {
+      setError("An unexpected error occurred");
       toast({
         title: "Error",
-        description: error.message,
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,6 +80,12 @@ export default function SignInPage() {
           <p className="text-gray-500">Enter your credentials to access your account</p>
         </div>
         
+        {error && (
+          <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Email</label>
@@ -92,9 +113,13 @@ export default function SignInPage() {
             />
           </div>
 
-          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+          <LoadingButton 
+            type="submit" 
+            loading={loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
             Sign In
-          </Button>
+          </LoadingButton>
         </form>
 
         <div className="text-center text-sm">

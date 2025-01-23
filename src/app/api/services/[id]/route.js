@@ -3,7 +3,9 @@ import { getServerSession } from "next-auth/next";
 import connectDB from '@/lib/db';
 import { Service } from '@/lib/models/service';
 import { authOptions } from '../../auth/[...nextauth]/route';
-import { broadcastServiceUpdate } from '@/lib/websocket';
+import { getIo } from '@/lib/socket-config';
+import { sendStatusChangeEmail } from '@/lib/email';
+import { UptimeHistory } from '@/lib/models/uptimeHistory';
 
 export async function PUT(request, { params }) {
   try {
@@ -17,7 +19,10 @@ export async function PUT(request, { params }) {
     }
 
     const body = await request.json();
-    console.log('Updating service with ID:', id, 'Data:', body); // Log the update request
+    
+    // Get the current service to compare status
+    const currentService = await Service.findById(id);
+    const oldStatus = currentService.status;
 
     const updatedService = await Service.findByIdAndUpdate(
       id,
@@ -32,8 +37,26 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // Broadcast the update using the new function
-    broadcastServiceUpdate(updatedService);
+    // Send email notification if status has changed
+    if (oldStatus !== updatedService.status) {
+      await sendStatusChangeEmail(updatedService, oldStatus, updatedService.status);
+    }
+
+    // Socket.IO update
+    const io = getIo();
+    if (io) {
+      io.to("serviceUpdates").emit("serviceUpdated", {
+        type: "serviceUpdated",
+        service: updatedService
+      });
+    }
+
+    // Record uptime history
+    await UptimeHistory.create({
+      serviceId: id,
+      status: body.status,
+      isUp: body.status === 'operational'
+    });
 
     return NextResponse.json(updatedService);
   } catch (error) {

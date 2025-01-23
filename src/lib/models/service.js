@@ -12,7 +12,7 @@ const serviceSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['operational', 'degraded', 'partial_outage', 'major_outage'],
+    enum: ['operational', 'degraded_performance', 'partial_outage', 'major_outage'],
     default: 'operational'
   },
   createdBy: {

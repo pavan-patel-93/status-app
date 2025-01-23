@@ -12,23 +12,12 @@ export default function SocketTest() {
     if (!socket) return;
 
     // Listen for messages from the server
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'connected') {
-          console.log('Connected to server:', data.message);
-        } else {
-          setMessages(prev => [...prev, data]);
-        }
-      } catch (error) {
-        console.error('Error parsing message:', error);
-      }
-    };
+    socket.on('message', (data) => {
+      setMessages(prev => [...prev, data]);
+    });
 
     return () => {
-      if (socket) {
-        socket.onmessage = null;
-      }
+      socket.off('message');
     };
   }, [socket]);
 
@@ -38,7 +27,7 @@ export default function SocketTest() {
 
   const simulateServiceUpdate = () => {
     const testUpdate = {
-      _id: '678fd0ddbc211544ba0da0e2', // Replace with an actual service ID
+      _id: '678fd0ddbc211544ba0da0e2',
       name: 'Test Service',
       status: ['operational', 'degraded', 'down'][Math.floor(Math.random() * 3)]
     };
