@@ -4,21 +4,24 @@ import connectDB from '@/lib/db';
 import { Incident } from '@/lib/models/incident';
 import { authOptions } from '../auth/[...nextauth]/route';
 
+// Handle GET request to fetch all incidents
 export async function GET() {
   try {
+    // Establish a connection to the database
     await connectDB();
 
+    // Fetch incidents and populate related services
     const incidents = await Incident.aggregate([
       {
         $lookup: {
-          from: 'services',  // The collection name in MongoDB
+          from: 'services', // Join with the 'services' collection
           localField: 'services',
           foreignField: '_id',
           as: 'services'
         }
       },
       {
-        $project: {
+        $project: { // Select specific fields to return
           title: 1,
           description: 1,
           status: 1,
@@ -33,10 +36,11 @@ export async function GET() {
         }
       },
       {
-        $sort: { createdAt: -1 }
+        $sort: { createdAt: -1 } // Sort incidents by creation date in descending order
       }
     ]);
 
+    // Return the list of incidents
     return NextResponse.json(incidents);
   } catch (error) {
     console.error('Error fetching incidents:', error);
@@ -47,36 +51,42 @@ export async function GET() {
   }
 }
 
+// Handle POST request to create a new incident
 export async function POST(req) {
   try {
+    // Establish a connection to the database
     await connectDB();
+    // Get the current user session
     const session = await getServerSession(authOptions);
     
+    // Check if the user is authenticated
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Parse the request body to get incident details
     const body = await req.json();
+    // Create a new incident in the database
     const incident = await Incident.create({
       ...body,
-      createdBy: session.user.id
+      createdBy: session.user.id // Associate the incident with the current user
     });
 
     // Populate the services data for the newly created incident
     const populatedIncident = await Incident.aggregate([
       {
-        $match: { _id: incident._id }
+        $match: { _id: incident._id } // Match the newly created incident
       },
       {
         $lookup: {
-          from: 'services',
+          from: 'services', // Join with the 'services' collection
           localField: 'services',
           foreignField: '_id',
           as: 'services'
         }
       },
       {
-        $project: {
+        $project: { // Select specific fields to return
           title: 1,
           description: 1,
           status: 1,
@@ -92,6 +102,7 @@ export async function POST(req) {
       }
     ]).then(results => results[0]);
 
+    // Return the newly created and populated incident
     return NextResponse.json(populatedIncident);
   } catch (error) {
     console.error('Error creating incident:', error);

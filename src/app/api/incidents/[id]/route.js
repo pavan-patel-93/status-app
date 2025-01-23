@@ -4,25 +4,29 @@ import connectDB from '@/lib/db';
 import { Incident } from '@/lib/models/incident';
 import { authOptions } from '../../auth/[...nextauth]/route';
 
+// Handle PATCH request to update an incident
 export async function PATCH(request, { params }) {
     try {
+        // Establish a connection to the database
         await connectDB();
+        // Get the current user session
         const session = await getServerSession(authOptions);
         
+        // Check if the user is authenticated
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = params;
-        const body = await request.json();
+        const { id } = params; // Extract incident ID from request parameters
+        const body = await request.json(); // Parse the request body
 
-        // Update the incident
+        // Update the incident with new data
         await Incident.findByIdAndUpdate(id, {
             ...body,
-            updatedAt: new Date()
+            updatedAt: new Date() // Update the timestamp
         });
 
-        // Fetch the updated incident with populated services
+        // Fetch the updated incident and populate related services
         const updatedIncident = await Incident.aggregate([
             {
                 $match: { _id: new mongoose.Types.ObjectId(id) }
@@ -52,6 +56,7 @@ export async function PATCH(request, { params }) {
             }
         ]).then(results => results[0]);
 
+        // Check if the incident was found and updated
         if (!updatedIncident) {
             return NextResponse.json(
                 { error: 'Incident not found' },
@@ -59,6 +64,7 @@ export async function PATCH(request, { params }) {
             );
         }
 
+        // Return the updated incident
         return NextResponse.json(updatedIncident);
     } catch (error) {
         console.error('Error updating incident:', error);
@@ -69,18 +75,24 @@ export async function PATCH(request, { params }) {
     }
 }
 
+// Handle DELETE request to remove an incident
 export async function DELETE(request, { params }) {
     try {
+        // Establish a connection to the database
         await connectDB();
+        // Get the current user session
         const session = await getServerSession(authOptions);
         
+        // Check if the user is authenticated
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = params; // Extract incident ID from request parameters
+        // Delete the incident from the database
         const deletedIncident = await Incident.findByIdAndDelete(id);
 
+        // Check if the incident was found and deleted
         if (!deletedIncident) {
             return NextResponse.json(
                 { error: 'Incident not found' },
@@ -88,6 +100,7 @@ export async function DELETE(request, { params }) {
             );
         }
 
+        // Return a success message
         return NextResponse.json({ message: 'Incident deleted successfully' });
     } catch (error) {
         console.error('Error deleting incident:', error);
@@ -96,4 +109,4 @@ export async function DELETE(request, { params }) {
             { status: 500 }
         );
     }
-} 
+}

@@ -4,11 +4,9 @@ import { useState, useEffect } from "react";
 import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { LoadingSpinner, LoadingPage, LoadingCard } from "@/components/ui/loading";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -35,7 +33,7 @@ export default function SignInPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError(""); // Clear any previous errors
+    setError("");
 
     try {
       const result = await signIn("credentials", {
