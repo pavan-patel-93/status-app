@@ -43,7 +43,7 @@ The Status App provides a user-friendly interface for monitoring the operational
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone [<repository-url>](https://github.com/pavan-patel-93/status-app.git)
    cd status-app
    ```
 
