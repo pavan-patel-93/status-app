@@ -11,70 +11,79 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import * as z from "zod";
+import { SelectField } from "@/components/ui/select-field";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { useToast } from "@/components/ui/use-toast";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
-const formSchema = z.object({
-    name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name cannot exceed 50 characters"),
-    description: z.string().min(2, "Description must be at least 2 characters").max(500, "Description cannot exceed 500 characters"),
-    status: z.enum([
-        "operational",
-        "degraded_performance",
-        "partial_outage",
-        "major_outage"
-    ], "Please select a valid status"),
-});
-
-export default function ServiceForm({ onServiceCreated, onServiceUpdated, editingService, onCancel }) {
-    const [open, setOpen] = useState(false);
-    const [formData, setFormData] = useState({
+const SERVICE_CONFIG = {
+    schema: z.object({
+        name: z.string()
+            .min(2, "Name must be at least 2 characters")
+            .max(50, "Name cannot exceed 50 characters"),
+        description: z.string()
+            .min(2, "Description must be at least 2 characters")
+            .max(500, "Description cannot exceed 500 characters"),
+        status: z.enum([
+            "operational",
+            "degraded_performance",
+            "partial_outage",
+            "major_outage"
+        ], "Please select a valid status"),
+    }),
+    defaultValues: {
         name: '',
         description: '',
         status: 'operational'
-    });
+    },
+    statusOptions: [
+        { value: 'operational', label: 'Operational' },
+        { value: 'degraded_performance', label: 'Degraded Performance' },
+        { value: 'partial_outage', label: 'Partial Outage' },
+        { value: 'major_outage', label: 'Major Outage' }
+    ]
+};
+
+export default function ServiceForm({ onServiceCreated, onServiceUpdated, editingService, onCancel }) {
+    const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
 
-    // Populate form when editingService changes
+    const form = useForm({
+        resolver: zodResolver(SERVICE_CONFIG.schema),
+        defaultValues: SERVICE_CONFIG.defaultValues,
+    });
+
+    // Reset form and populate with editing service data when available
     useEffect(() => {
         if (editingService) {
-            setFormData({
+            form.reset({
                 name: editingService.name,
                 description: editingService.description,
                 status: editingService.status
             });
             setOpen(true);
         }
-    }, [editingService]);
+    }, [editingService, form]);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const showToast = (title, description, variant = "default") => {
+        toast({ title, description, variant });
+    };
+
+    const handleSubmit = async (data) => {
         setLoading(true);
         
         try {
-            // Validate form data
-            const validatedData = formSchema.parse(formData);
-            
             const url = editingService
                 ? `/api/services/${editingService._id}`
                 : '/api/services';
 
-            const method = editingService ? 'PUT' : 'POST';
-
             const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(validatedData),
+                method: editingService ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
             });
 
             if (!response.ok) {
@@ -85,46 +94,23 @@ export default function ServiceForm({ onServiceCreated, onServiceUpdated, editin
 
             if (editingService) {
                 onServiceUpdated(savedService);
-                toast({
-                    title: "Success",
-                    description: "Service updated successfully",
-                    variant: "success",
-                });
+                showToast("Success", "Service updated successfully", "success");
             } else {
                 onServiceCreated(savedService);
-                toast({
-                    title: "Success",
-                    description: "Service created successfully",
-                    variant: "success",
-                });
+                showToast("Success", "Service created successfully", "success");
             }
 
-            setFormData({ name: '', description: '', status: 'operational' });
-            setOpen(false);
+            handleClose();
         } catch (error) {
-            if (error instanceof z.ZodError) {
-                // Handle validation errors
-                error.errors.forEach((err) => {
-                    toast({
-                        title: "Validation Error",
-                        description: err.message,
-                        variant: "destructive",
-                    });
-                });
-            } else {
-                toast({
-                    title: "Error",
-                    description: "Failed to save service",
-                    variant: "destructive",
-                });
-            }
+            console.error('Service save error:', error);
+            showToast("Error", "Failed to save service", "destructive");
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCancel = () => {
-        setFormData({ name: '', description: '', status: 'operational' });
+    const handleClose = () => {
+        form.reset(SERVICE_CONFIG.defaultValues);
         setOpen(false);
         onCancel?.();
     };
@@ -142,56 +128,48 @@ export default function ServiceForm({ onServiceCreated, onServiceUpdated, editin
                         {editingService ? 'Edit Service' : 'Add New Service'}
                     </DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name" className="text-black">Name</Label>
                         <Input
                             id="name"
-                            value={formData.name}
-                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                            required
+                            {...form.register('name')}
                             className="border-gray-200 focus:border-gray-400 text-black"
                         />
+                        {form.formState.errors.name && (
+                            <p className="text-sm text-red-500">
+                                {form.formState.errors.name.message}
+                            </p>
+                        )}
                     </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="description" className="text-black">Description</Label>
                         <Input
                             id="description"
-                            value={formData.description}
-                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                            required
+                            {...form.register('description')}
                             className="border-gray-200 focus:border-gray-400 text-black"
                         />
+                        {form.formState.errors.description && (
+                            <p className="text-sm text-red-500">
+                                {form.formState.errors.description.message}
+                            </p>
+                        )}
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="status" className="text-black">Status</Label>
-                        <Select
-                            value={formData.status}
-                            onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
-                        >
-                            <SelectTrigger className="bg-white border-gray-200 text-black">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-white">
-                                <SelectItem value="operational" className="text-black hover:bg-gray-100">
-                                    Operational
-                                </SelectItem>
-                                <SelectItem value="degraded_performance" className="text-black hover:bg-gray-100">
-                                    Degraded Performance
-                                </SelectItem>
-                                <SelectItem value="partial_outage" className="text-black hover:bg-gray-100">
-                                    Partial Outage
-                                </SelectItem>
-                                <SelectItem value="major_outage" className="text-black hover:bg-gray-100">
-                                    Major Outage
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+
+                    <SelectField
+                        form={form}
+                        name="status"
+                        label="Status"
+                        placeholder="Select status"
+                        options={SERVICE_CONFIG.statusOptions}
+                        className="space-y-2"
+                    />
+
                     <div className="flex justify-end gap-2">
                         <Button
                             type="button"
-                            onClick={handleCancel}
+                            onClick={handleClose}
                             className="bg-white text-black border border-gray-200 hover:bg-gray-100"
                         >
                             Cancel
