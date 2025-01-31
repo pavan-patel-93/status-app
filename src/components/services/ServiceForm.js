@@ -20,16 +20,17 @@ import {
 } from "@/components/ui/select";
 import * as z from "zod";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { useToast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
-    name: z.string().min(2).max(50),
-    description: z.string().min(2).max(500),
+    name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name cannot exceed 50 characters"),
+    description: z.string().min(2, "Description must be at least 2 characters").max(500, "Description cannot exceed 500 characters"),
     status: z.enum([
         "operational",
         "degraded_performance",
         "partial_outage",
         "major_outage"
-    ]),
+    ], "Please select a valid status"),
 });
 
 export default function ServiceForm({ onServiceCreated, onServiceUpdated, editingService, onCancel }) {
@@ -40,6 +41,7 @@ export default function ServiceForm({ onServiceCreated, onServiceUpdated, editin
         status: 'operational'
     });
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
 
     // Populate form when editingService changes
     useEffect(() => {
@@ -56,7 +58,11 @@ export default function ServiceForm({ onServiceCreated, onServiceUpdated, editin
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        
         try {
+            // Validate form data
+            const validatedData = formSchema.parse(formData);
+            
             const url = editingService
                 ? `/api/services/${editingService._id}`
                 : '/api/services';
@@ -68,7 +74,7 @@ export default function ServiceForm({ onServiceCreated, onServiceUpdated, editin
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(validatedData),
             });
 
             if (!response.ok) {
@@ -79,15 +85,39 @@ export default function ServiceForm({ onServiceCreated, onServiceUpdated, editin
 
             if (editingService) {
                 onServiceUpdated(savedService);
+                toast({
+                    title: "Success",
+                    description: "Service updated successfully",
+                    variant: "success",
+                });
             } else {
                 onServiceCreated(savedService);
+                toast({
+                    title: "Success",
+                    description: "Service created successfully",
+                    variant: "success",
+                });
             }
 
-            // Reset form and close dialog
             setFormData({ name: '', description: '', status: 'operational' });
             setOpen(false);
         } catch (error) {
-            console.error('Error saving service:', error);
+            if (error instanceof z.ZodError) {
+                // Handle validation errors
+                error.errors.forEach((err) => {
+                    toast({
+                        title: "Validation Error",
+                        description: err.message,
+                        variant: "destructive",
+                    });
+                });
+            } else {
+                toast({
+                    title: "Error",
+                    description: "Failed to save service",
+                    variant: "destructive",
+                });
+            }
         } finally {
             setLoading(false);
         }
