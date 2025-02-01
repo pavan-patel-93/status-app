@@ -1,7 +1,10 @@
 import mongoose from 'mongoose';
 
 const incidentSchema = new mongoose.Schema({
-  title: { type: String, required: true },
+  title: { 
+    type: String, 
+    required: true 
+  },
   description: String,
   status: {
     type: String,
@@ -13,8 +16,20 @@ const incidentSchema = new mongoose.Schema({
     enum: ['none', 'minor', 'major', 'critical'],
     default: 'none'
   },
-  services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
-  createdBy: { type: String, required: true },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
+  services: [{ 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Service' 
+  }],
+  createdBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User',
+    required: true 
+  },
   updates: [{
     message: String,
     status: String,

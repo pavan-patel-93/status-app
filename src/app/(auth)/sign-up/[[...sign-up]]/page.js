@@ -7,24 +7,43 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function SignUpPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { status } = useSession();
+  const [organizations, setOrganizations] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
+    organizationId: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    fetchOrganizations();
     if (status === "authenticated") {
       router.push("/dashboard");
     }
   }, [status, router]);
+
+  const fetchOrganizations = async () => {
+    try {
+      const response = await fetch('/api/organizations');
+      const data = await response.json();
+      setOrganizations(data);
+    } catch (error) {
+      console.error('Error fetching organizations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch organizations",
+        variant: "destructive",
+      });
+    }
+  };
 
   // If still loading or already authenticated, don't show the form
   if (status === "loading" || status === "authenticated") {
@@ -122,6 +141,27 @@ export default function SignUpPage() {
               }
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Organization</label>
+            <Select
+              value={formData.organizationId}
+              onValueChange={(value) =>
+                setFormData({ ...formData, organizationId: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select organization" />
+              </SelectTrigger>
+              <SelectContent>
+                {organizations.map((org) => (
+                  <SelectItem key={org._id} value={org._id}>
+                    {org.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <LoadingButton 

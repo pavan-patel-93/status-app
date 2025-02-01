@@ -3,15 +3,26 @@ import { getServerSession } from "next-auth/next";
 import connectDB from '@/lib/db';
 import { Service } from '@/lib/models/service';
 import { authOptions } from '../auth/[...nextauth]/route';
+import { organizationCheck } from '@/middleware/organizationCheck';
 
 // Handle GET request to fetch all services
 export async function GET(req) {
   try {
     // Establish a connection to the database
     await connectDB();
+    const orgCheck = await organizationCheck(req);
+    
+    if (orgCheck.error) {
+      return NextResponse.json(
+        { error: orgCheck.error },
+        { status: orgCheck.status }
+      );
+    }
 
     // Retrieve all services from the database
-    const services = await Service.find();
+    const services = await Service.find({ 
+      organizationId: orgCheck.organizationId 
+    });
     // Return the list of services
     return NextResponse.json(services);
   } catch (error) {
@@ -30,10 +41,13 @@ export async function POST(req) {
     await connectDB();
     // Get the current user session
     const session = await getServerSession(authOptions);
+    const orgCheck = await organizationCheck(req);
     
-    // Check if the user is authenticated
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (orgCheck.error) {
+      return NextResponse.json(
+        { error: orgCheck.error },
+        { status: orgCheck.status }
+      );
     }
 
     // Parse the request body to get service details
@@ -50,6 +64,7 @@ export async function POST(req) {
     // Log the service details for debugging
     console.log({
       ...body,
+      organizationId: orgCheck.organizationId,
       createdBy: session.user.id,
       status: body.status || 'operational'
     });
@@ -57,6 +72,7 @@ export async function POST(req) {
     // Create a new service in the database
     const service = await Service.create({
       ...body,
+      organizationId: orgCheck.organizationId,
       createdBy: session.user.id,
       status: body.status || 'operational'
     });

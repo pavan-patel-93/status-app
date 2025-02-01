@@ -3,25 +3,37 @@ import { getServerSession } from "next-auth/next";
 import connectDB from '@/lib/db';
 import { Incident } from '@/lib/models/incident';
 import { authOptions } from '../auth/[...nextauth]/route';
+import { organizationCheck } from '@/middleware/organizationCheck';
 
 // Handle GET request to fetch all incidents
-export async function GET() {
+export async function GET(req) {
   try {
-    // Establish a connection to the database
     await connectDB();
+    const orgCheck = await organizationCheck(req);
+    
+    if (orgCheck.error) {
+      return NextResponse.json(
+        { error: orgCheck.error },
+        { status: orgCheck.status }
+      );
+    }
 
-    // Fetch incidents and populate related services
     const incidents = await Incident.aggregate([
       {
+        $match: { 
+          organizationId: orgCheck.organizationId 
+        }
+      },
+      {
         $lookup: {
-          from: 'services', // Join with the 'services' collection
+          from: 'services',
           localField: 'services',
           foreignField: '_id',
           as: 'services'
         }
       },
       {
-        $project: { // Select specific fields to return
+        $project: {
           title: 1,
           description: 1,
           status: 1,
@@ -36,16 +48,15 @@ export async function GET() {
         }
       },
       {
-        $sort: { createdAt: -1 } // Sort incidents by creation date in descending order
+        $sort: { createdAt: -1 }
       }
     ]);
 
-    // Return the list of incidents
     return NextResponse.json(incidents);
   } catch (error) {
-    console.error('Error fetching incidents:', error);
+    console.error('Incidents API Error:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' }, 
+      { error: 'Internal Server Error' },
       { status: 500 }
     );
   }
@@ -54,39 +65,39 @@ export async function GET() {
 // Handle POST request to create a new incident
 export async function POST(req) {
   try {
-    // Establish a connection to the database
     await connectDB();
-    // Get the current user session
     const session = await getServerSession(authOptions);
-    
-    // Check if the user is authenticated
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const orgCheck = await organizationCheck(req);
+    console.log(orgCheck);
+    if (orgCheck.error) {
+      return NextResponse.json(
+        { error: orgCheck.error },
+        { status: orgCheck.status }
+      );
     }
 
-    // Parse the request body to get incident details
     const body = await req.json();
-    // Create a new incident in the database
+    console.log(body);
     const incident = await Incident.create({
       ...body,
-      createdBy: session.user.id // Associate the incident with the current user
+      organizationId: orgCheck.organizationId,
+      createdBy: session.user.id
     });
 
-    // Populate the services data for the newly created incident
     const populatedIncident = await Incident.aggregate([
       {
-        $match: { _id: incident._id } // Match the newly created incident
+        $match: { _id: incident._id }
       },
       {
         $lookup: {
-          from: 'services', // Join with the 'services' collection
+          from: 'services',
           localField: 'services',
           foreignField: '_id',
           as: 'services'
         }
       },
       {
-        $project: { // Select specific fields to return
+        $project: {
           title: 1,
           description: 1,
           status: 1,
@@ -102,12 +113,11 @@ export async function POST(req) {
       }
     ]).then(results => results[0]);
 
-    // Return the newly created and populated incident
     return NextResponse.json(populatedIncident);
   } catch (error) {
-    console.error('Error creating incident:', error);
+    console.error('Incident creation error:', error);
     return NextResponse.json(
-      { error: 'Internal Server Error' }, 
+      { error: 'Failed to create incident' },
       { status: 500 }
     );
   }

@@ -15,20 +15,8 @@ const userSchema = new mongoose.Schema({
     required: true,
     select: false
   },
-  organizations: [{
-    organizationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Organization'
-    },
-    role: {
-      type: String,
-      enum: ['owner', 'admin', 'member'],
-      default: 'member'
-    }
-  }],
-  currentOrganizationId: {
+  organizationId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Organization'
   },
   createdAt: {
     type: Date,
@@ -40,7 +28,6 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Prevent mongoose from creating the model multiple times
 const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 export default User; 

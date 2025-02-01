@@ -7,10 +7,10 @@ import User from "@/lib/models/user";
 export async function POST(request) {
   try {
     // Parse the request body to extract user details
-    const { name, email, password } = await request.json();
+    const { name, email, password, organizationId } = await request.json();
 
     // Validate the input fields
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !organizationId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -36,7 +36,8 @@ export async function POST(request) {
     const user = await User.create({
       name,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      organizationId
     });
 
     // Respond with a success message and the created user's details
@@ -47,6 +48,7 @@ export async function POST(request) {
           id: user._id,
           name: user.name,
           email: user.email,
+          organizationId: user.organizationId
         }
       },
       { status: 201 }

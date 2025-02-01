@@ -31,7 +31,7 @@ const FormLabel = React.forwardRef(({ className, ...props }, ref) => {
 FormLabel.displayName = "FormLabel";
 
 const FormControl = React.forwardRef(({ ...props }, ref) => {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+  const { id, error, formItemId, formDescriptionId, formMessageId } = useFormField();
 
   return (
     <Slot
@@ -39,7 +39,7 @@ const FormControl = React.forwardRef(({ ...props }, ref) => {
       id={formItemId}
       aria-describedby={
         !error
-          ? `${formDescriptionId}`
+          ? formDescriptionId
           : `${formDescriptionId} ${formMessageId}`
       }
       aria-invalid={!!error}
@@ -84,31 +84,29 @@ const FormMessage = React.forwardRef(({ className, children, ...props }, ref) =>
 });
 FormMessage.displayName = "FormMessage";
 
+const FormFieldContext = React.createContext({});
+const FormItemContext = React.createContext({});
+
 const useFormField = () => {
   const fieldContext = React.useContext(FormFieldContext);
   const itemContext = React.useContext(FormItemContext);
-  const { getFieldState, formState } = useFormContext();
-
-  const fieldState = getFieldState(fieldContext.name, formState);
+  const { getFieldState, formState } = useFormContext() || {};
 
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>");
   }
 
-  const { id } = itemContext;
+  const fieldState = getFieldState?.(fieldContext.name, formState);
 
   return {
-    id,
+    id: itemContext?.id,
     name: fieldContext.name,
-    formItemId: `${id}-form-item`,
-    formDescriptionId: `${id}-form-item-description`,
-    formMessageId: `${id}-form-item-message`,
+    formItemId: `${itemContext?.id}-form-item`,
+    formDescriptionId: `${itemContext?.id}-form-item-description`,
+    formMessageId: `${itemContext?.id}-form-item-message`,
     ...fieldState,
   };
 };
-
-const FormFieldContext = React.createContext({});
-const FormItemContext = React.createContext({});
 
 export {
   useFormField,

@@ -15,6 +15,11 @@ const serviceSchema = new mongoose.Schema({
     enum: ['operational', 'degraded_performance', 'partial_outage', 'major_outage'],
     default: 'operational'
   },
+  organizationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: true
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

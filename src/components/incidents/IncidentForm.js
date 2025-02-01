@@ -31,15 +31,15 @@ const FORM_CONFIG = {
     schema: z.object({
         title: z.string().min(2).max(100),
         description: z.string().min(2).max(1000),
-        status: z.enum(['investigating', 'identified', 'monitoring', 'resolved']),
-        impact: z.enum(['none', 'minor', 'major', 'critical']),
+        status: z.enum(['Select status','investigating', 'identified', 'monitoring', 'resolved']),
+        impact: z.enum(['Select impact','none', 'minor', 'major', 'critical']),
         services: z.array(z.string()).min(1),
     }),
     defaultValues: {
         title: "",
         description: "",
-        status: "investigating",
-        impact: "minor",
+        status: "",
+        impact: "",
         services: [],
     },
     statusOptions: [
