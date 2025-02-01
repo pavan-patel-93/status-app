@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, parseISO } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
@@ -35,7 +35,7 @@ export default function UptimeGraph({ serviceId }) {
       <CardContent>
         <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={uptimeData}>
+            <BarChart data={uptimeData}>
               <XAxis 
                 dataKey="date" 
                 tickFormatter={(date) => format(parseISO(date), 'MMM d')}
@@ -48,14 +48,12 @@ export default function UptimeGraph({ serviceId }) {
                 formatter={(value) => [`${value.toFixed(2)}%`, 'Uptime']}
                 labelFormatter={(date) => format(parseISO(date), 'MMM d, yyyy')}
               />
-              <Line 
-                type="monotone" 
+              <Bar 
                 dataKey="uptimePercentage" 
-                stroke="#2563eb" 
-                strokeWidth={2}
-                dot={false}
+                fill="#2563eb" 
+                barSize={30}
               />
-            </LineChart>
+            </BarChart>
           </ResponsiveContainer>
         </div>
       </CardContent>
