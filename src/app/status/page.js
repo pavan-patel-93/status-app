@@ -5,7 +5,7 @@ import { Incident } from '@/lib/models/incident';
 
 async function getServices() {
     await connectDB();
-    return Service.find().lean(); // Use .lean() to return plain objects
+    return Service.find().lean();
 }
 
 async function getIncidents() {
@@ -13,7 +13,7 @@ async function getIncidents() {
     return Incident.find()
         .populate('services', 'name status')
         .sort({ createdAt: -1 })
-        .lean(); // Use .lean() to return plain objects
+        .lean(); 
 }
 
 export default async function StatusPage() {
